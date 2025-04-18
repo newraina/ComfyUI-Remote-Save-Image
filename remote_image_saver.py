@@ -89,7 +89,8 @@ class RemoteImageSaver:
                     "min": 1,
                     "max": 100,
                     "step": 1,
-                    "display": "slider"
+                    "display": "slider",
+                    "note": "Only applicable for JPEG and WEBP formats. Not used for PNG format."
                 }),
             },
             "hidden": {
@@ -124,8 +125,13 @@ class RemoteImageSaver:
             A dictionary containing UI information for display in ComfyUI
         """
         logger.info("Starting image upload process, total images: %d, upload URL: %s", len(images), upload_url)
-        logger.debug("Upload parameters - field name: %s, file prefix: %s, image format: %s, quality: %d",
-                   image_field_name, filename_prefix, image_format, quality)
+        # Only log quality parameter for non-PNG formats
+        if image_format != "PNG":
+            logger.debug("Upload parameters - field name: %s, file prefix: %s, image format: %s, quality: %d",
+                       image_field_name, filename_prefix, image_format, quality)
+        else:
+            logger.debug("Upload parameters - field name: %s, file prefix: %s, image format: %s",
+                       image_field_name, filename_prefix, image_format)
         results = []
 
         # Parse JSON inputs
@@ -164,9 +170,11 @@ class RemoteImageSaver:
                     image.save(image_bytes, format="PNG")
                     logger.debug("Image saved in PNG format")
                 elif image_format == "JPEG":
+                    # For JPEG format, use quality parameter
                     image.save(image_bytes, format="JPEG", quality=quality)
                     logger.debug("Image saved in JPEG format, quality: %d", quality)
                 elif image_format == "WEBP":
+                    # For WEBP format, use quality parameter
                     image.save(image_bytes, format="WEBP", quality=quality)
                     logger.debug("Image saved in WEBP format, quality: %d", quality)
 
