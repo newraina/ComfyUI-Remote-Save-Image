@@ -58,6 +58,54 @@ After installation, you'll find the "Remote Save Image" node in the "image/uploa
 
 The node will upload the images to the specified URL and display the server responses in the ComfyUI interface. It can be used as a direct replacement for the standard SaveImage node when you want to upload images to a remote server instead of saving them locally.
 
+## API Response Format
+
+To properly display uploaded images in the ComfyUI interface (similar to the standard SaveImage node), your API endpoint should return a JSON response that includes a URL to the uploaded image. The node will attempt to extract the URL from the response in the following ways:
+
+1. Direct URL field: The response should include a `url` field at the root level:
+   ```json
+   {
+     "url": "https://your-server.com/path/to/uploaded/image.png",
+     "other_fields": "..."
+   }
+   ```
+
+2. Nested URL field: Alternatively, the URL can be nested in a `data` object:
+   ```json
+   {
+     "data": {
+       "url": "https://your-server.com/path/to/uploaded/image.png",
+       "other_fields": "..."
+     },
+     "status": "success"
+   }
+   ```
+
+If the node can extract a valid URL from the response, it will be included in the return value and can be used by other nodes in your workflow. If no URL is found, the node will still display the full response text in the ComfyUI interface.
+
+## Return Value Structure
+
+The Remote Save Image node now returns a value structure compatible with the standard SaveImage node:
+
+```json
+{
+  "ui": {
+    "images": [
+      {
+        "filename": "remote_image_1",
+        "subfolder": "",
+        "type": "remote",
+        "url": "https://your-server.com/path/to/uploaded/image.png",
+        "status": "success",
+        "message": "Image 1 uploaded successfully: {...}"
+      }
+    ]
+  }
+}
+```
+
+This structure allows the node to be used as a drop-in replacement for the SaveImage node in workflows that expect that format.
+
 ## Security Considerations
 
 - **API Keys and Tokens**: Be careful with sensitive information in the `headers_json` field. Consider using environment variables or a secure method to manage your credentials.

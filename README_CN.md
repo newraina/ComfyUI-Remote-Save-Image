@@ -58,6 +58,54 @@
 
 节点将图像上传到指定的 URL 并在 ComfyUI 界面中显示服务器响应。当您想将图像上传到远程服务器而不是本地保存时，它可以直接替代标准的 SaveImage 节点使用。
 
+## API 响应格式
+
+为了在 ComfyUI 界面中正确显示上传的图像（类似于标准的 SaveImage 节点），您的 API 端点应返回包含上传图像 URL 的 JSON 响应。节点将尝试通过以下方式从响应中提取 URL：
+
+1. 直接 URL 字段：响应应在根级别包含 `url` 字段：
+   ```json
+   {
+     "url": "https://your-server.com/path/to/uploaded/image.png",
+     "other_fields": "..."
+   }
+   ```
+
+2. 嵌套 URL 字段：或者，URL 可以嵌套在 `data` 对象中：
+   ```json
+   {
+     "data": {
+       "url": "https://your-server.com/path/to/uploaded/image.png",
+       "other_fields": "..."
+     },
+     "status": "success"
+   }
+   ```
+
+如果节点能从响应中提取有效的 URL，该 URL 将被包含在返回值中，并可被工作流中的其他节点使用。如果未找到 URL，节点仍将在 ComfyUI 界面中显示完整的响应文本。
+
+## 返回值结构
+
+Remote Save Image 节点现在返回与标准 SaveImage 节点兼容的值结构：
+
+```json
+{
+  "ui": {
+    "images": [
+      {
+        "filename": "remote_image_1",
+        "subfolder": "",
+        "type": "remote",
+        "url": "https://your-server.com/path/to/uploaded/image.png",
+        "status": "success",
+        "message": "Image 1 uploaded successfully: {...}"
+      }
+    ]
+  }
+}
+```
+
+这种结构允许该节点在期望该格式的工作流中作为 SaveImage 节点的直接替代品使用。
+
 ## 安全考虑
 
 - **API 密钥和令牌**：在 `headers_json` 字段中小心处理敏感信息。考虑使用环境变量或安全方法来管理凭据。

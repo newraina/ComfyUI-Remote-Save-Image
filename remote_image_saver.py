@@ -215,37 +215,101 @@ class RemoteImageSaver:
                         response_data = response.json()
                         response_text = json.dumps(response_data)
                         logger.debug("Response parsed as JSON: %s", response_text)
+
+                        # Try to extract URL from JSON response
+                        image_url = None
+                        if isinstance(response_data, dict) and 'url' in response_data:
+                            image_url = response_data['url']
+                        elif isinstance(response_data, dict) and 'data' in response_data and isinstance(response_data['data'], dict) and 'url' in response_data['data']:
+                            image_url = response_data['data']['url']
                     except json.JSONDecodeError:
                         response_text = response.text
                         logger.debug("Response is not JSON format, using text: %s", response_text)
+                        image_url = None
 
                     success_msg = f"Image {i + 1} uploaded successfully: {response_text}"
                     logger.info("Image %d uploaded successfully", i + 1)
-                    results.append(success_msg)
+
+                    # Store both the message and the URL (if available)
+                    result_info = {
+                        "message": success_msg,
+                        "url": image_url,
+                        "status": "success"
+                    }
+                    results.append(result_info)
                 except requests.exceptions.Timeout:
                     error_msg = f"Error uploading image {i + 1}: Request timed out after 60 seconds"
                     logger.error("Image %d upload timed out", i + 1)
-                    results.append(error_msg)
+                    result_info = {
+                        "message": error_msg,
+                        "url": None,
+                        "status": "error"
+                    }
+                    results.append(result_info)
                     continue
 
             except requests.RequestException as e:
                 error_msg = f"Error uploading image {i + 1}: {str(e)}"
                 logger.error("Image %d upload request exception: %s", i + 1, str(e))
                 logger.debug("Request exception details: %s", traceback.format_exc())
-                results.append(error_msg)
+                result_info = {
+                    "message": error_msg,
+                    "url": None,
+                    "status": "error"
+                }
+                results.append(result_info)
             except Exception as e:
                 error_msg = f"Unexpected error uploading image {i + 1}: {str(e)}"
                 logger.error("Unexpected error during image %d upload: %s", i + 1, str(e))
                 logger.debug("Exception details: %s", traceback.format_exc())
-                results.append(error_msg)
+                result_info = {
+                    "message": error_msg,
+                    "url": None,
+                    "status": "error"
+                }
+                results.append(result_info)
 
-        # Join all results with newlines
-        response_text = "\n".join(results)
+        # Process results for UI display
         logger.info("All images processed, total: %d images", len(images))
 
-        # Return UI info for display in ComfyUI
-        logger.debug("Returning UI info: %s", response_text)
-        return {"ui": {"text": response_text}}
+        # Format results in a way compatible with SaveImage node
+        ui_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, dict):
+                # For structured results
+                url = result.get("url")
+                status = result.get("status")
+                message = result.get("message", "")
+
+                # Create a result entry similar to SaveImage
+                ui_result = {
+                    "filename": f"remote_image_{i+1}",  # Placeholder filename
+                    "subfolder": "",                  # No subfolder for remote images
+                    "type": "remote"                  # Mark as remote type
+                }
+
+                # Add URL if available
+                if url:
+                    ui_result["url"] = url
+
+                # Add status and message for display
+                ui_result["status"] = status
+                ui_result["message"] = message
+            else:
+                # For string results (fallback)
+                ui_result = {
+                    "filename": f"remote_image_{i+1}",
+                    "subfolder": "",
+                    "type": "remote",
+                    "status": "unknown",
+                    "message": str(result)
+                }
+
+            ui_results.append(ui_result)
+
+        # Return UI info in a format similar to SaveImage node
+        logger.debug("Returning UI info with %d results", len(ui_results))
+        return {"ui": {"images": ui_results}}
 
 
 def tensor_to_pil(image_tensor):
